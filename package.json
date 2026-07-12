@@ -1,0 +1,123 @@
+{
+  "name": "mihomo-switch",
+  "displayName": "Mihomo Switch",
+  "description": "Keyboard-driven, editor-native mihomo proxy controller. Switch nodes without leaving VSCode.",
+  "version": "0.1.4",
+  "publisher": "your-publisher",
+  "license": "MIT",
+  "repository": {},
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "clash",
+    "mihomo",
+    "proxy",
+    "clash-verge",
+    "proxy-switcher"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mihomo-switch",
+          "title": "Mihomo",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "mihomo-switch": [
+        {
+          "id": "mihomo-switch.proxies",
+          "name": "Proxies"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mihomo-switch.switchProxy",
+        "title": "Switch Proxy",
+        "category": "Mihomo Switch"
+      },
+      {
+        "command": "mihomo-switch.testLatency",
+        "title": "Test Latency",
+        "category": "Mihomo Switch"
+      },
+      {
+        "command": "mihomo-switch.selectInstance",
+        "title": "Select Instance",
+        "category": "Mihomo Switch"
+      },
+      {
+        "command": "mihomo-switch.refresh",
+        "title": "Refresh",
+        "category": "Mihomo Switch",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mihomo-switch.refresh",
+          "when": "view == mihomo-switch.proxies",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Mihomo Switch",
+      "properties": {
+        "mihomo-switch.endpoint": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Manual endpoint, overrides auto-discovery. e.g. `127.0.0.1:9097`. Leave empty to auto-discover."
+        },
+        "mihomo-switch.secret": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Manual secret, overrides auto-discovery. Leave empty to read from the running Clash Verge config."
+        },
+        "mihomo-switch.autoDiscover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Probe `127.0.0.1:9097` / `9090` and read the Clash Verge config dir for the secret."
+        },
+        "mihomo-switch.testUrl": {
+          "type": "string",
+          "default": "http://www.gstatic.com/generate_204",
+          "description": "URL used for latency testing."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:bufferutil --external:utf-8-validate --format=cjs --platform=node --sourcemap",
+    "watch": "npm run compile -- --watch",
+    "vscode:prepublish": "npm run compile -- --minify",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.10",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.0"
+  }
+}
