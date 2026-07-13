@@ -3,7 +3,7 @@
   "displayName": "Mihomo Switch",
   "description": "Keyboard-driven, editor-native mihomo proxy controller. Switch nodes without leaving VSCode.",
   "icon": "resources/extension-icon.png",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "Cooperiano",
   "license": "MIT",
   "repository": {
