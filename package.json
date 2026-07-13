@@ -3,7 +3,7 @@
   "displayName": "Mihomo Switch",
   "description": "Keyboard-driven, editor-native proxy controller for mihomo (Clash.Meta) and Clash Verge. Switch nodes without leaving VSCode.",
   "icon": "resources/extension-icon.png",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "Cooperiano",
   "license": "MIT",
   "repository": {
