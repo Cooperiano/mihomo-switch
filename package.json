@@ -5,7 +5,14 @@
   "version": "0.2.0",
   "publisher": "Cooperiano",
   "license": "MIT",
-  "repository": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cooperiano/mihomo-switch"
+  },
+  "bugs": {
+    "url": "https://github.com/Cooperiano/mihomo-switch/issues"
+  },
+  "homepage": "https://github.com/Cooperiano/mihomo-switch#readme",
   "categories": [
     "Other"
   ],
