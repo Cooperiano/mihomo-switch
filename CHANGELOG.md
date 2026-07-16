@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0
+
+- **Dashboard upgrade**: Replaced vendored yacd (unmaintained since 2022) with metacubexd v1.269.0. Runtime config injection so the dashboard auto-connects — no manual setup.
+- **Dashboard command**: Added "Mihomo Switch: Open Dashboard" to command palette (`alt+shift+d`).
+- **Keyboard shortcuts**: `alt+shift+p` — switch proxy; `alt+shift+d` — open dashboard.
+- **Exponential backoff**: Traffic WebSocket reconnection now uses exponential backoff (1s → 30s max) with jitter, replacing the fixed 3s retry.
+- **Dependencies**: ws 8.21.0 → 8.21.1 (security patch), esbuild 0.20.2 → 0.28.1.
+
+## 0.2.3
+
+- Extension icon for marketplace.
+
+## 0.2.2
+
+- Add clash keywords to marketplace metadata.
+
+## 0.2.1
+
+- Add repository/bugs/homepage metadata.
+
+## 0.2.0
+
+- Publisher: Cooperiano.
+- Slim VSIX (exclude node_modules).
+
 ## 0.1.0
 
 - Initial release.

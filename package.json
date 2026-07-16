@@ -3,7 +3,7 @@
   "displayName": "Mihomo Switch",
   "description": "Keyboard-driven, editor-native proxy controller for mihomo (Clash.Meta) and Clash Verge. Switch nodes without leaving VSCode.",
   "icon": "resources/extension-icon.png",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "publisher": "Cooperiano",
   "license": "MIT",
   "repository": {
@@ -70,12 +70,36 @@
         "title": "Refresh",
         "category": "Mihomo Switch",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "mihomo-switch.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Mihomo Switch",
+        "icon": "$(dashboard)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "mihomo-switch.switchProxy",
+        "key": "alt+shift+p",
+        "mac": "alt+shift+p",
+        "when": "!editorFocus"
+      },
+      {
+        "command": "mihomo-switch.openDashboard",
+        "key": "alt+shift+d",
+        "mac": "alt+shift+d"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "mihomo-switch.refresh",
+          "when": "view == mihomo-switch.proxies",
+          "group": "navigation"
+        },
+        {
+          "command": "mihomo-switch.openDashboard",
           "when": "view == mihomo-switch.proxies",
           "group": "navigation"
         }
@@ -117,14 +141,14 @@
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
-    "ws": "^8.16.0"
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "@types/ws": "^8.5.10",
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.28.1",
     "typescript": "^5.3.0",
     "vitest": "^1.6.0"
   }

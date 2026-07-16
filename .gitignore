@@ -4,8 +4,4 @@ out/
 .vscode-test/
 *.log
 .DS_Store
-# vendored metacubexd dashboard (pulled at build, packaged by vsce)
-resources/metacubexd/
-# vendored yacd-meta dashboard (pulled at build, packaged by vsce)
-resources/yacd/
 

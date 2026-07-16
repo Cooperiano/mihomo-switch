@@ -35,6 +35,7 @@ export class TcpTransport implements Transport {
   private disposed = false;
   private trafficWs: WebSocket | null = null;
   private trafficReconnect: NodeJS.Timeout | null = null;
+  private trafficReconnectAttempts = 0;
   private trafficCb?: (s: TrafficSample) => void;
   private trafficStatusCb?: (online: boolean) => void;
 
@@ -106,7 +107,10 @@ export class TcpTransport implements Transport {
         // ignore malformed frames
       }
     });
-    ws.on('open', () => this.trafficStatusCb?.(true));
+    ws.on('open', () => {
+      this.trafficReconnectAttempts = 0;
+      this.trafficStatusCb?.(true);
+    });
     ws.on('error', () => {
       /* close handler follows */
     });
@@ -116,12 +120,19 @@ export class TcpTransport implements Transport {
     });
   }
 
+  /**
+   * Exponential backoff: 1s → 2s → 4s → … → max 30s, with ±25% jitter.
+   * Attempts reset on a successful `open` so brief blips don't escalate.
+   */
   private scheduleReconnect(): void {
     if (this.disposed || this.trafficReconnect) return;
+    const base = Math.min(1000 * 2 ** this.trafficReconnectAttempts, 30_000);
+    const jitter = base * (0.5 + Math.random() * 0.5); // 50–100% of base
+    this.trafficReconnectAttempts++;
     this.trafficReconnect = setTimeout(() => {
       this.trafficReconnect = null;
       this.connectTraffic();
-    }, 3000);
+    }, Math.round(jitter));
   }
 
   dispose(): void {

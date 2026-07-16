@@ -7,5 +7,3 @@ tsconfig.json
 **/*.map
 **/*.ts
 vitest.config.*
-# vendored metacubexd dashboard (kept on disk to switch back; yacd iframe is the default panel)
-resources/metacubexd/**
