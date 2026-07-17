@@ -6,6 +6,7 @@ import { StatusBar } from './status-bar';
 import { collectGroups } from './proxies-util';
 import { readConfig } from './config';
 import { openDashboard } from './dashboard';
+import { openSetupGuide } from './setup';
 import type { Transport } from './transport';
 import type { Proxy } from './types';
 
@@ -19,6 +20,7 @@ class MihomoSwitch {
   private readonly statusBar = new StatusBar();
   private readonly tree = new ProxyTreeProvider();
   private client: Transport | null = null;
+  private lastNote = '';
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     ctx.subscriptions.push(
@@ -31,6 +33,7 @@ class MihomoSwitch {
       vscode.commands.registerCommand('mihomo-switch.selectInstance', () => this.configureInstance()),
       vscode.commands.registerCommand('mihomo-switch.refresh', () => this.refresh()),
       vscode.commands.registerCommand('mihomo-switch.openDashboard', () => openDashboard(this.ctx)),
+      vscode.commands.registerCommand('mihomo-switch.setupController', () => openSetupGuide()),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('mihomo-switch')) {
           void this.rediscover();
@@ -52,6 +55,7 @@ class MihomoSwitch {
 
     const result = await discoverInstance(readConfig());
     if (!result.transport) {
+      this.lastNote = result.note;
       this.statusBar.setNoInstance(result.note);
       return null;
     }
@@ -168,12 +172,14 @@ class MihomoSwitch {
   }
 
   private async configureInstance(): Promise<void> {
-    const choice = await vscode.window.showInformationMessage(
-      'Mihomo Switch: no local mihomo instance found. Start Clash Verge / mihomo, or set the endpoint manually.',
-      'Open Settings',
-      'Retry',
-    );
-    if (choice === 'Open Settings') {
+    const authFailed = /auth failed/i.test(this.lastNote);
+    const message = authFailed
+      ? 'Mihomo Switch: reachable, but authentication failed. Set the correct secret, or check the setup guide.'
+      : 'Mihomo Switch: no local mihomo instance found. Start Clash Verge / mihomo, or follow the setup guide.';
+    const choice = await vscode.window.showWarningMessage(message, 'Setup Guide', 'Open Settings', 'Retry');
+    if (choice === 'Setup Guide') {
+      openSetupGuide();
+    } else if (choice === 'Open Settings') {
       await vscode.commands.executeCommand('workbench.action.openSettings', 'mihomo-switch');
     } else if (choice === 'Retry') {
       void this.rediscover();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- **Setup Guide**: New "Mihomo Switch: Setup External Controller" command opens a step-by-step walkthrough for enabling the TCP controller in Clash Verge (required only for the Dashboard; node switching works out of the box).
+- **Smarter error states**: The "not found" status now distinguishes authentication failure from a missing instance and routes to the right fix (Setup Guide vs. settings).
+- **Dashboard error guidance**: When the TCP controller is unreachable, the Dashboard prompt offers the Setup Guide directly instead of a generic settings link.
+- **Open Config Folder**: The setup guide can reveal the detected Clash Verge config directory in Finder.
+
 ## 0.3.0
 
 - **Dashboard upgrade**: Replaced vendored yacd (unmaintained since 2022) with metacubexd v1.269.0. Runtime config injection so the dashboard auto-connects — no manual setup.

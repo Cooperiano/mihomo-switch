@@ -21,10 +21,13 @@ export async function openDashboard(ctx: vscode.ExtensionContext): Promise<void>
   const tcp = await resolveTcpController();
   if (!tcp) {
     const choice = await vscode.window.showWarningMessage(
-      'Mihomo: TCP controller not reachable. Enable External Controller (127.0.0.1:9097) in Clash Verge and fully restart it.',
+      'Mihomo: Dashboard needs the TCP controller (127.0.0.1:9097). Open the setup guide to enable it in Clash Verge.',
+      'Setup Guide',
       'Open Settings',
     );
-    if (choice === 'Open Settings') {
+    if (choice === 'Setup Guide') {
+      await vscode.commands.executeCommand('mihomo-switch.setupController');
+    } else if (choice === 'Open Settings') {
       await vscode.commands.executeCommand('workbench.action.openSettings', 'mihomo-switch');
     }
     return;
