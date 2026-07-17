@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+Quality + UX pass.
+
+- **Switch history**: Recently-switched nodes pin to the top of the QuickPick under a "最近使用" separator. Persisted across sessions via workspace state.
+- **Optimistic switching**: Clicking a node highlights it instantly; reverts to the server's truth if the request fails.
+- **Latency test progress**: The batch test now reports `done/total` as it runs, instead of an opaque spinner.
+- **Dashboard opens faster**: Shows a loading state immediately instead of a blank window, and caches the controller for ~60s so re-opening the dashboard is near-instant (cache self-invalidates on auth failure).
+- **De-dup + dead code**: Extracted the shared TCP-controller probe (`resolveTcpController`) that was duplicated between the dashboard and discovery. Removed unused `getVersion` and `MihomoInstance`.
+
 ## 0.3.2
 
 - **Fix: Dashboard auto-connects now.** The metacubexd dashboard was stopping at the login screen (appeared blank/unusable) because the secret wasn't being injected — `config.js` only accepts `defaultBackendURL`, not a secret. Switched to metacubexd's native hash-fragment auto-login (`#/?hostname=&port=&secret=&http=1`), with `http=1` forcing the http scheme since mihomo's controller is plain HTTP. Verified end-to-end against a live backend.

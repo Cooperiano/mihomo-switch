@@ -13,7 +13,6 @@ import type { DelayResponse, ProxiesResponse, TrafficSample } from './types';
  * Docs: https://wiki.metacubex.one/api
  */
 export interface Transport {
-  getVersion(): Promise<{ version: string; meta?: boolean }>;
   getProxies(): Promise<ProxiesResponse>;
   selectProxy(group: string, name: string): Promise<void>;
   testDelay(name: string, testUrl: string, timeout: number): Promise<DelayResponse>;
@@ -62,9 +61,6 @@ export class TcpTransport implements Transport {
     return res.json() as Promise<T>;
   }
 
-  getVersion(): Promise<{ version: string; meta?: boolean }> {
-    return this.req('/version');
-  }
   getProxies(): Promise<ProxiesResponse> {
     return this.req('/proxies');
   }
@@ -185,9 +181,6 @@ export class UnixSocketTransport implements Transport {
     return JSON.parse(r.data) as T;
   }
 
-  getVersion(): Promise<{ version: string; meta?: boolean }> {
-    return this.getJson('/version');
-  }
   getProxies(): Promise<ProxiesResponse> {
     return this.getJson('/proxies');
   }

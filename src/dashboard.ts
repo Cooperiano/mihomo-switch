@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { TcpTransport, tcpAlive } from './transport';
-import { readSecretCandidatesFromVerge } from './discovery';
+import { TcpTransport } from './transport';
+import { resolveTcpController } from './discovery';
 import { readConfig } from './config';
 
 /**
@@ -24,8 +24,25 @@ import { readConfig } from './config';
  * reach the Unix socket Clash Verge defaults to.
  */
 export async function openDashboard(ctx: vscode.ExtensionContext): Promise<void> {
-  const tcp = await resolveTcpController();
+  const distDir = vscode.Uri.joinPath(ctx.extensionUri, 'resources', 'metacubexd');
+  // Show the panel immediately with a loading state — probing the controller
+  // can take up to ~1.5s per endpoint, and a blank window looks broken.
+  const panel = vscode.window.createWebviewPanel(
+    'mihomo-dashboard',
+    'Mihomo Dashboard',
+    vscode.ViewColumn.Active,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [distDir],
+    },
+  );
+  panel.iconPath = vscode.Uri.joinPath(ctx.extensionUri, 'resources', 'icon.svg');
+  panel.webview.html = renderLoading();
+
+  const tcp = await resolveCachedTcpController(readConfig());
   if (!tcp) {
+    panel.dispose();
     const choice = await vscode.window.showWarningMessage(
       'Mihomo: Dashboard needs the TCP controller (127.0.0.1:9097). Open the setup guide to enable it in Clash Verge.',
       'Setup Guide',
@@ -38,64 +55,54 @@ export async function openDashboard(ctx: vscode.ExtensionContext): Promise<void>
     }
     return;
   }
-
-  const distDir = vscode.Uri.joinPath(ctx.extensionUri, 'resources', 'metacubexd');
-
-  const panel = vscode.window.createWebviewPanel(
-    'mihomo-dashboard',
-    'Mihomo Dashboard',
-    vscode.ViewColumn.Active,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [distDir],
-    },
-  );
-  panel.iconPath = vscode.Uri.joinPath(ctx.extensionUri, 'resources', 'icon.svg');
   panel.webview.html = renderHtml(panel.webview, distDir, tcp.endpoint, tcp.secret);
 }
 
-/** Probe TCP endpoints + resolve a working secret. */
-async function resolveTcpController(): Promise<{ endpoint: string; secret: string } | null> {
-  const cfg = readConfig();
-  const secrets: string[] = [];
-  if (cfg.secret) {
-    secrets.push(cfg.secret);
-  }
-  if (cfg.autoDiscover) {
-    for (const s of await readSecretCandidatesFromVerge()) {
-      secrets.push(s);
-    }
-  }
-  secrets.push('');
+/**
+ * Cached controller resolution. Re-opening the dashboard hits the cache (a
+ * single quick GET /proxies) instead of re-probing every endpoint. The cache
+ * self-invalidates: if the cached secret goes stale the verify 401s and we
+ * fall through to a full probe.
+ */
+const TCP_CACHE_TTL_MS = 60_000;
+let cachedTcp: { endpoint: string; secret: string; at: number } | null = null;
 
-  const endpoints: string[] = [];
-  if (cfg.endpoint) {
-    endpoints.push(cfg.endpoint);
-  }
-  if (cfg.autoDiscover) {
-    for (const e of ['127.0.0.1:9097', '127.0.0.1:9090']) {
-      if (!endpoints.includes(e)) endpoints.push(e);
+async function resolveCachedTcpController(
+  cfg: ReturnType<typeof readConfig>,
+): Promise<{ endpoint: string; secret: string } | null> {
+  if (cachedTcp && Date.now() - cachedTcp.at < TCP_CACHE_TTL_MS) {
+    const t = new TcpTransport(cachedTcp.endpoint, cachedTcp.secret);
+    try {
+      await t.getProxies();
+      t.dispose();
+      return { endpoint: cachedTcp.endpoint, secret: cachedTcp.secret };
+    } catch {
+      t.dispose();
+      cachedTcp = null;
     }
   }
+  const resolved = await resolveTcpController(cfg);
+  if (resolved) {
+    cachedTcp = { ...resolved, at: Date.now() };
+  }
+  return resolved;
+}
 
-  const dedup = <T>(arr: T[]): T[] => Array.from(new Set(arr));
-  for (const ep of dedup(endpoints)) {
-    if (!(await tcpAlive(ep))) {
-      continue;
-    }
-    for (const secret of dedup(secrets)) {
-      const t = new TcpTransport(ep, secret);
-      try {
-        await t.getProxies();
-        t.dispose();
-        return { endpoint: ep, secret };
-      } catch {
-        t.dispose();
-      }
-    }
-  }
-  return null;
+function renderLoading(): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<style>
+  html,body{margin:0;height:100vh}
+  body{display:flex;align-items:center;justify-content:center;gap:14px;
+       background:var(--vscode-editor-background);color:var(--vscode-descriptionForeground);
+       font-family:var(--vscode-font-family)}
+  .spin{width:26px;height:26px;border-radius:50%;
+        border:3px solid var(--vscode-button-secondaryBackground);
+        border-top-color:var(--vscode-button-background);animation:r .8s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style></head>
+<body><div class="spin"></div>连接 mihomo 控制器…</body></html>`;
 }
 
 /**

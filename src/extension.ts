@@ -21,6 +21,10 @@ class MihomoSwitch {
   private readonly tree = new ProxyTreeProvider();
   private client: Transport | null = null;
   private lastNote = '';
+  /** Recently switched nodes, most-recent first. Persisted across sessions. */
+  private recent: string[] = [];
+  private static readonly RECENT_KEY = 'recentNodes';
+  private static readonly RECENT_MAX = 5;
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     ctx.subscriptions.push(
@@ -44,7 +48,16 @@ class MihomoSwitch {
   }
 
   async start(): Promise<void> {
+    this.recent = this.ctx.globalState.get<string[]>(MihomoSwitch.RECENT_KEY) ?? [];
     await this.rediscover();
+  }
+
+  /** Prepend a node to the recent list (deduped, capped). Persisted. */
+  private async recordRecent(proxy: string): Promise<void> {
+    const next = [proxy, ...this.recent.filter((n) => n !== proxy)].slice(0, MihomoSwitch.RECENT_MAX);
+    if (next.join('\n') === this.recent.join('\n')) return;
+    this.recent = next;
+    await this.ctx.globalState.update(MihomoSwitch.RECENT_KEY, next);
   }
 
   /** Re-run discovery, swap the client, refresh UI. Safe to call repeatedly. */
@@ -104,7 +117,7 @@ class MihomoSwitch {
     if (!client) {
       return;
     }
-    const picked = await showSwitchPicker(client);
+    const picked = await showSwitchPicker(client, this.recent);
     if (!picked) {
       return;
     }
@@ -118,7 +131,7 @@ class MihomoSwitch {
     }
     // invoked from the command palette without args -> fall back to the picker
     if (!group || !proxy) {
-      const picked = await showSwitchPicker(client);
+      const picked = await showSwitchPicker(client, this.recent);
       if (!picked) {
         return;
       }
@@ -129,10 +142,15 @@ class MihomoSwitch {
   }
 
   private async applySelection(client: Transport, group: string, proxy: string): Promise<void> {
+    // Optimistic: highlight the new node now, before the round-trip.
+    this.tree.setLocalSelection(group, proxy);
     try {
       await client.selectProxy(group, proxy);
+      await this.recordRecent(proxy);
       await this.refresh();
     } catch (err) {
+      // Revert to the server's truth, then surface the error.
+      await this.refresh();
       void vscode.window.showErrorMessage(`Mihomo: switch failed — ${this.errorMessage(err)}`);
     }
   }
@@ -156,7 +174,9 @@ class MihomoSwitch {
         title: `Mihomo: testing latency (${target.name})…`,
         cancellable: false,
       },
-      async () => {
+      async (progress) => {
+        let done = 0;
+        const total = target.all.length;
         await Promise.all(
           target.all.map(async (name) => {
             try {
@@ -164,6 +184,8 @@ class MihomoSwitch {
             } catch {
               // individual node failures are expected (timeout / unreachable)
             }
+            done++;
+            progress.report({ message: `${done}/${total} nodes tested` });
           }),
         );
         await this.refresh();

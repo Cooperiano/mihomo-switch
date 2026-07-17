@@ -108,6 +108,36 @@ export interface DiscoveryResult {
   note: string;
 }
 
+/**
+ * Resolve a working TCP controller's endpoint + secret. Used by the Dashboard,
+ * which (unlike node switching) must talk HTTP — webview JS can't reach the
+ * Unix socket. Returns null if no TCP controller authenticates.
+ */
+export async function resolveTcpController(
+  cfg: MihomoConfig,
+): Promise<{ endpoint: string; secret: string } | null> {
+  const secrets = await resolveSecrets(cfg);
+  const endpoints: string[] = [];
+  if (cfg.endpoint) endpoints.push(cfg.endpoint);
+  if (cfg.autoDiscover) {
+    for (const e of TCP_ENDPOINTS) if (!endpoints.includes(e)) endpoints.push(e);
+  }
+  for (const ep of endpoints) {
+    if (!(await tcpAlive(ep))) continue;
+    for (const secret of secrets) {
+      const t = new TcpTransport(ep, secret);
+      try {
+        await t.getProxies();
+        t.dispose();
+        return { endpoint: ep, secret };
+      } catch {
+        t.dispose();
+      }
+    }
+  }
+  return null;
+}
+
 /** Resolve a working transport for the local mihomo, or report why it failed. */
 export async function discoverInstance(cfg: MihomoConfig): Promise<DiscoveryResult> {
   const secrets = await resolveSecrets(cfg);

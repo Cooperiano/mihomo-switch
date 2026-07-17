@@ -43,14 +43,6 @@ export interface DelayResponse {
   delay: number;
 }
 
-/** A discovered / configured mihomo instance. empty `secret` = no auth. */
-export interface MihomoInstance {
-  /** `host:port`, e.g. `127.0.0.1:9097`. No scheme. */
-  endpoint: string;
-  /** Bearer secret. Empty string when the instance has no secret set. */
-  secret: string;
-}
-
 /** One traffic sample pushed by `WS /traffic` as `[up, down]`. */
 export interface TrafficSample {
   up: number;

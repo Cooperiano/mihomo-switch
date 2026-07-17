@@ -42,6 +42,19 @@ export class ProxyTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     this._onDidChange.fire(undefined);
   }
 
+  /**
+   * Optimistic local update of a group's selected node — flips the highlight
+   * immediately, before the server round-trip confirms. `refresh()` later
+   * overwrites it with the authoritative state.
+   */
+  setLocalSelection(group: string, proxy: string): void {
+    const g = this.groups.find((x) => x.name === group);
+    if (g && g.now !== proxy) {
+      g.now = proxy;
+      this._onDidChange.fire(undefined);
+    }
+  }
+
   getTreeItem(element: TreeNode): vscode.TreeItem {
     return element;
   }
