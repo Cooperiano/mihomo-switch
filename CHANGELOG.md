@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- **Fix: Dashboard auto-connects now.** The metacubexd dashboard was stopping at the login screen (appeared blank/unusable) because the secret wasn't being injected — `config.js` only accepts `defaultBackendURL`, not a secret. Switched to metacubexd's native hash-fragment auto-login (`#/?hostname=&port=&secret=&http=1`), with `http=1` forcing the http scheme since mihomo's controller is plain HTTP. Verified end-to-end against a live backend.
+
 ## 0.3.1
 
 - **Setup Guide**: New "Mihomo Switch: Setup External Controller" command opens a step-by-step walkthrough for enabling the TCP controller in Clash Verge (required only for the Dashboard; node switching works out of the box).
