@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { readFileSync } from 'fs';
 import { TcpTransport } from './transport';
 import { resolveTcpController } from './discovery';
 import { readConfig } from './config';
@@ -6,22 +7,25 @@ import { readConfig } from './config';
 /**
  * Opens the metacubexd dashboard, vendored locally, in a webview panel.
  *
- * Auto-login via a hash fragment — metacubexd (hash-routed) reads these from
- * `route.query` on mount and connects automatically:
- *   index.html#/?hostname=&port=&secret=&http=1
- *   https://github.com/MetaCubeX/metacubexd/blob/main/pages/setup.vue
+ * Architecture — metacubexd runs as the TOP-LEVEL webview document, not in an
+ * iframe. An earlier iframe approach failed: VSCode serves vendored files from
+ * a `file+.vscode-resource.vscode-cdn.net` host that is cross-origin to the
+ * webview's top-level origin, and scripts inside that cross-origin iframe
+ * silently don't execute → blank dashboard. Loading metacubexd at the top
+ * level (where scripts provably run) fixes it.
  *
- * Two gotchas, both verified against the live app:
- *  1. The params MUST be inside the `#` fragment. metacubexd reads them via
- *     object property access (`query.hostname`), which only works on
- *     vue-router's `route.query` — a bare `?…` in location.search is ignored.
- *  2. `http=1` forces the http: scheme. Without it metacubexd reuses the
- *     webview's protocol (https), but mihomo's controller is plain http, so
- *     the connection fails. localhost is a mixed-content exception in
- *     Chromium, so https-webview → http-127.0.0.1 still connects.
+ * Two injections into metacubexd's index.html:
+ *  1. `<base href="<webview-uri-of-distDir>/">` — rewrites metacubexd's
+ *     relative `./_nuxt/…` and `./_fonts/…` references to same-origin webview
+ *     URIs, so module scripts load under the webview origin (no CORS dance).
+ *  2. A prefill script that seeds `localStorage` with the discovered endpoint
+ *     (URL + secret) and selects it. metacubexd reads these via VueUse
+ *     `useLocalStorage('endpointList')` / `('selectedEndpoint')` on mount, so
+ *     it auto-connects without a login screen. The CSP opens
+ *     `connect-src` to 127.0.0.1 for the HTTP API + WebSocket traffic stream.
  *
- * Requires the TCP controller (mihomo's `-ext-ctl`): webview/iframe JS cannot
- * reach the Unix socket Clash Verge defaults to.
+ * Requires the TCP controller (mihomo's `-ext-ctl`): webview JS cannot reach
+ * the Unix socket Clash Verge defaults to.
  */
 export async function openDashboard(ctx: vscode.ExtensionContext): Promise<void> {
   const distDir = vscode.Uri.joinPath(ctx.extensionUri, 'resources', 'metacubexd');
@@ -105,40 +109,34 @@ function renderLoading(): string {
 <body><div class="spin"></div>连接 mihomo 控制器…</body></html>`;
 }
 
-/**
- * Build the auto-login hash fragment metacubexd's setup page expects.
- *
- * metacubexd uses hash routing and reads these from `route.query`, so they
- * MUST live inside the `#` fragment — a bare `?…` in location.search is
- * ignored. `http=1` forces the http: scheme (see file header).
- */
-function buildAutoLoginHash(endpoint: string, secret: string): string {
-  const idx = endpoint.lastIndexOf(':');
-  const hostname = idx > 0 ? endpoint.slice(0, idx) : endpoint;
-  const port = idx > 0 ? endpoint.slice(idx + 1) : '9090';
-  const params = new URLSearchParams({ hostname, port, http: '1' });
-  if (secret) {
-    params.set('secret', secret);
-  }
-  return `#/?${params.toString()}`;
-}
-
+/** Inject <base> + CSP + endpoint prefill into metacubexd's index.html. */
 function renderHtml(
   webview: vscode.Webview,
   distDir: vscode.Uri,
   endpoint: string,
   secret: string,
 ): string {
-  const metacubexdIndex = webview.asWebviewUri(vscode.Uri.joinPath(distDir, 'index.html'));
-  const hash = buildAutoLoginHash(endpoint, secret);
+  const indexHtml = readFileSync(vscode.Uri.joinPath(distDir, 'index.html').fsPath, 'utf8');
+  const base = `${webview.asWebviewUri(distDir)}/`;
+  const backend = `http://${endpoint}`;
 
-  // CSP governs only the top document. The iframe (metacubexd) runs under its
-  // own origin and connects to 127.0.0.1 directly — a localhost mixed-content
-  // exception, not gated by this CSP.
-  const csp = `default-src 'none'; frame-src ${webview.cspSource}; style-src 'unsafe-inline';`;
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="${csp}">
-<style>html,body{margin:0;padding:0;height:100vh;overflow:hidden}iframe{width:100%;height:100%;border:0;display:block}</style>
-</head><body><iframe src="${metacubexdIndex}${hash}" title="Mihomo Dashboard"></iframe></body></html>`;
+  const csp = [
+    `default-src 'none'`,
+    // 'unsafe-inline' for metacubexd's inline NUXT_DATA + our prefill script;
+    // cspSource for the vendored _nuxt module scripts.
+    `script-src 'unsafe-inline' ${webview.cspSource}`,
+    `style-src 'unsafe-inline' ${webview.cspSource}`,
+    // mihomo controller HTTP API + WebSocket traffic stream.
+    `connect-src http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*`,
+    `img-src ${webview.cspSource} data: https:`,
+    `font-src ${webview.cspSource}`,
+    `manifest-src ${webview.cspSource}`,
+    `worker-src ${webview.cspSource}`,
+    `frame-src 'none'`,
+  ].join('; ');
+
+  const endpointId = 'vscode';
+  const prefill = `<base href="${base}"><meta http-equiv="Content-Security-Policy" content="${csp}"><script>try{localStorage.setItem('endpointList',JSON.stringify([{id:${JSON.stringify(endpointId)},url:${JSON.stringify(backend)},secret:${JSON.stringify(secret)}}]));localStorage.setItem('selectedEndpoint',${JSON.stringify(endpointId)});}catch(e){}</script>`;
+
+  return indexHtml.replace('<head>', '<head>' + prefill);
 }
