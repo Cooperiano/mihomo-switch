@@ -1,4 +1,5 @@
 .vscode/**
+.claude/**
 node_modules/**
 src/**
 test/**
@@ -7,3 +8,4 @@ tsconfig.json
 **/*.map
 **/*.ts
 vitest.config.*
+resources/yacd/**
