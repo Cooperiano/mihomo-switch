@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- **Packaging fix.** The 0.4.1 vsix published to the marketplace was **40.9 MB** because `.claude/worktrees/` (nested git worktrees) was not in `.vscodeignore` and got bundled into the package. The long-removed `yacd` dashboard (replaced by metacubexd in 0.3.0 — zero references in `src/`) was also still bundled. `.vscodeignore` now excludes both; the vsix is **2.5 MB / 133 files** again. No functional change.
+
 ## 0.4.1
 
 - **Fix: Dashboard white screen.** Root cause: VSCode serves vendored files from a `file+.vscode-resource.vscode-cdn.net` host that is cross-origin to the webview's top-level origin, so scripts inside an iframe of that host silently don't execute. Switched from an iframe to loading metacubexd as the top-level webview document: a `<base>` tag rewrites its assets to same-origin webview URIs (module scripts load under the webview origin), and the controller endpoint + secret are injected via `localStorage` (`endpointList` / `selectedEndpoint`) so metacubexd auto-connects with no login screen. Verified end-to-end.
